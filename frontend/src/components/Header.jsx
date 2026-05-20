@@ -10,7 +10,7 @@ const Header = ({ onMenuClick, searchQuery, onSearchChange }) => {
 
   return (
     <header className={`sticky top-0 z-50 w-full transition-all duration-300 ${isLandingPage ? "bg-background/80 backdrop-blur-md" : "border-b border-border/50 bg-background/95 backdrop-blur-xl shadow-md"} bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60`}>
-      <div className="container flex h-20 items-center justify-between px-4 md:px-8">
+      <div className="flex h-20 items-center justify-between px-4 md:px-8 w-full">
         {/* Left Section - Logo & Menu */}
         <div className="flex items-center gap-6">
           {!isLandingPage && location.pathname === "/products" && (
