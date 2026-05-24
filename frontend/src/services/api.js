@@ -187,3 +187,34 @@ export const updateOrderStatus = async (orderId, status, token) => {
   }
   return data;
 };
+
+// Upload API
+export const uploadImage = async (imageData, token) => {
+  const response = await fetch(`${API_URL}/upload`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ image: imageData })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to upload image');
+  }
+  return data;
+};
+
+export const deleteImage = async (publicId, token) => {
+  const response = await fetch(`${API_URL}/upload/${publicId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to delete image');
+  }
+  return data;
+};

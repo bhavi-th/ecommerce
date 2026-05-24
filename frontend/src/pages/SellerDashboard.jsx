@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/Card"
 import Button from "../components/Button"
 import { useUser } from "../context/UserContext"
 import { useNavigate } from "react-router-dom"
-import { getSellerProducts, getSellerStats, createProduct, updateProduct, deleteProduct, getSellerOrders, updateOrderStatus } from "../services/api"
+import { getSellerProducts, getSellerStats, createProduct, updateProduct, deleteProduct, getSellerOrders, updateOrderStatus, uploadImage } from "../services/api"
 
 const SellerDashboard = () => {
   const navigate = useNavigate()
@@ -24,6 +24,9 @@ const SellerDashboard = () => {
     totalOrders: 0
   })
   const [sellerOrders, setSellerOrders] = useState([])
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState("")
+  const [uploadingImage, setUploadingImage] = useState(false)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -102,6 +105,8 @@ const SellerDashboard = () => {
       setSellerProducts([...sellerProducts, newProduct])
       setShowAddModal(false)
       setFormData({ name: "", price: "", category: "Electronics", description: "", image: "", stock: "" })
+      setImageFile(null)
+      setImagePreview("")
       loadSellerStats()
     } catch (error) {
       console.error('Error adding product:', error)
@@ -119,6 +124,7 @@ const SellerDashboard = () => {
       image: product.image,
       stock: product.stock
     })
+    setImagePreview(product.image)
     setShowAddModal(true)
   }
 
@@ -138,6 +144,8 @@ const SellerDashboard = () => {
       setShowAddModal(false)
       setEditingProduct(null)
       setFormData({ name: "", price: "", category: "Electronics", description: "", image: "", stock: "" })
+      setImageFile(null)
+      setImagePreview("")
       loadSellerStats()
     } catch (error) {
       console.error('Error updating product:', error)
@@ -166,6 +174,33 @@ const SellerDashboard = () => {
     } catch (error) {
       console.error('Error updating order status:', error)
       alert('Failed to update order status: ' + error.message)
+    }
+  }
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setImageFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(reader.result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleImageUpload = async () => {
+    if (!imageFile) return
+
+    try {
+      setUploadingImage(true)
+      const result = await uploadImage(imagePreview, user.token)
+      setFormData({ ...formData, image: result.url })
+      setUploadingImage(false)
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      alert('Failed to upload image: ' + error.message)
+      setUploadingImage(false)
     }
   }
 
@@ -455,6 +490,8 @@ const SellerDashboard = () => {
                     setShowAddModal(false)
                     setEditingProduct(null)
                     setFormData({ name: "", price: "", category: "Electronics", description: "", image: "", stock: "" })
+                    setImageFile(null)
+                    setImagePreview("")
                   }}>
                     <X className="h-4 w-4" />
                   </Button>
@@ -515,14 +552,57 @@ const SellerDashboard = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Image URL</label>
-                  <input
-                    type="text"
-                    value={formData.image}
-                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                    className="w-full rounded-xl border-2 border-border bg-muted/50 px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
-                    placeholder="https://example.com/image.jpg"
-                  />
+                  <label className="text-sm font-medium mb-2 block">Product Image</label>
+
+                  {/* Image Preview */}
+                  {(imagePreview || formData.image) && (
+                    <div className="mb-4">
+                      <img
+                        src={imagePreview || formData.image}
+                        alt="Preview"
+                        className="w-full h-48 object-cover rounded-lg border-2 border-border"
+                      />
+                    </div>
+                  )}
+
+                  {/* File Upload */}
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="flex-1 rounded-xl border-2 border-border bg-muted/50 px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90"
+                      />
+                      {imageFile && (
+                        <Button
+                          onClick={handleImageUpload}
+                          disabled={uploadingImage}
+                          className="whitespace-nowrap"
+                        >
+                          {uploadingImage ? "Uploading..." : "Upload"}
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Manual URL Input */}
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-border" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">Or enter image URL manually</span>
+                      </div>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={formData.image}
+                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                      className="w-full rounded-xl border-2 border-border bg-muted/50 px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
+                      placeholder="https://example.com/image.jpg"
+                    />
+                  </div>
                 </div>
                 <Button
                   className="w-full"

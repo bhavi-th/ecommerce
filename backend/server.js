@@ -9,6 +9,7 @@ import Product from './models/Product.js';
 import Cart from './models/Cart.js';
 import Order from './models/Order.js';
 import { products } from '../frontend/src/data/products.js';
+import { uploadImage, deleteImage } from './controllers/uploadController.js';
 
 dotenv.config();
 
@@ -421,9 +422,13 @@ app.get('/api/orders/seller/myorders', protect, async (req, res) => {
 app.put('/api/orders/:id/status', protect, async (req, res) => {
   try {
     const { status } = req.body;
+    console.log('Updating order status. Order ID:', req.params.id, 'Status:', status);
     const order = await Order.findById(req.params.id);
 
+    console.log('Found order:', order);
+
     if (!order) {
+      console.log('Order not found with ID:', req.params.id);
       return res.status(404).json({ message: 'Order not found' });
     }
 
@@ -454,6 +459,10 @@ app.put('/api/orders/:id/status', protect, async (req, res) => {
     res.status(500).json({ message: 'Error updating order status' });
   }
 });
+
+// Upload routes
+app.post('/api/upload', protect, uploadImage);
+app.delete('/api/upload/:publicId', protect, deleteImage);
 
 // Health check
 app.get('/api/health', (req, res) => {
