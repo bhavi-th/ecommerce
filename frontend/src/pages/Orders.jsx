@@ -74,22 +74,22 @@ const Orders = () => {
         ) : (
           <div className="space-y-4 md:space-y-6">
             {orders.map((order) => (
-              <Card key={order._id} className="overflow-hidden">
+              <Card key={order._id || order.id || Math.random()} className="overflow-hidden">
                 <CardHeader className="border-b border-border">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                      <CardTitle className="text-lg">Order #{order._id.slice(-8)}</CardTitle>
+                      <CardTitle className="text-lg">Order #{order._id ? order._id.slice(-8) : 'N/A'}</CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleDateString('en-US', {
+                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric'
-                        })}
+                        }) : 'N/A'}
                       </p>
                     </div>
                     <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${getStatusColor(order.status)}`}>
                       {getStatusIcon(order.status)}
-                      {order.status}
+                      {order.status || 'Unknown'}
                     </div>
                   </div>
                 </CardHeader>
@@ -97,7 +97,7 @@ const Orders = () => {
                   <div className="space-y-4">
                     {/* Order Items */}
                     <div className="space-y-3">
-                      {order.products.map((item, index) => (
+                      {order.products && order.products.length > 0 ? order.products.map((item, index) => (
                         <div key={index} className="flex items-center gap-4">
                           <img
                             src={item.image}
@@ -110,7 +110,9 @@ const Orders = () => {
                           </div>
                           <p className="font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
                         </div>
-                      ))}
+                      )) : (
+                        <p className="text-muted-foreground">No products in this order</p>
+                      )}
                     </div>
 
                     {/* Order Details */}

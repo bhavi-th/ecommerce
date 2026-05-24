@@ -11,6 +11,66 @@ export const getProduct = async (id) => {
   return response.json();
 };
 
+export const createProduct = async (productData, token) => {
+  const response = await fetch(`${API_URL}/products`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(productData)
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to create product');
+  }
+  return data;
+};
+
+export const updateProduct = async (id, productData, token) => {
+  const response = await fetch(`${API_URL}/products/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(productData)
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to update product');
+  }
+  return data;
+};
+
+export const deleteProduct = async (id, token) => {
+  const response = await fetch(`${API_URL}/products/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to delete product');
+  }
+  return data;
+};
+
+export const getSellerProducts = async (token) => {
+  const response = await fetch(`${API_URL}/products/seller/myproducts`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  return response.json();
+};
+
+export const getSellerStats = async (token) => {
+  const response = await fetch(`${API_URL}/products/seller/stats`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  return response.json();
+};
+
 // User API
 export const registerUser = async (userData) => {
   const response = await fetch(`${API_URL}/users/register`, {
@@ -103,4 +163,27 @@ export const getUserOrders = async (token) => {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   return response.json();
+};
+
+export const getSellerOrders = async (token) => {
+  const response = await fetch(`${API_URL}/orders/seller/myorders`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  return response.json();
+};
+
+export const updateOrderStatus = async (orderId, status, token) => {
+  const response = await fetch(`${API_URL}/orders/${orderId}/status`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ status })
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to update order status');
+  }
+  return data;
 };

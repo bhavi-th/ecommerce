@@ -1,10 +1,10 @@
-import { useState } from "react"
-import { Package, Plus, Edit, Trash2, TrendingUp, DollarSign, ShoppingBag, ArrowRight, X } from "lucide-react"
+import { useState, useEffect } from "react"
+import { Package, Plus, Edit, Trash2, TrendingUp, DollarSign, ShoppingBag, ArrowRight, X, CheckCircle, Clock, Truck, XCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/Card"
 import Button from "../components/Button"
 import { useUser } from "../context/UserContext"
 import { useNavigate } from "react-router-dom"
-import { products } from "../data/products"
+import { getSellerProducts, getSellerStats, createProduct, updateProduct, deleteProduct, getSellerOrders, updateOrderStatus } from "../services/api"
 
 const SellerDashboard = () => {
   const navigate = useNavigate()
@@ -12,7 +12,18 @@ const SellerDashboard = () => {
   const [activeTab, setActiveTab] = useState("products")
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
-  const [sellerProducts, setSellerProducts] = useState(products.slice(0, 10)) // Simulated seller products
+  const [sellerProducts, setSellerProducts] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    totalRevenue: 0,
+    totalSales: 0,
+    todayRevenue: 0,
+    weekRevenue: 0,
+    monthRevenue: 0,
+    totalOrders: 0
+  })
+  const [sellerOrders, setSellerOrders] = useState([])
 
   const [formData, setFormData] = useState({
     name: "",
@@ -22,6 +33,48 @@ const SellerDashboard = () => {
     image: "",
     stock: ""
   })
+
+  const loadSellerProducts = async () => {
+    if (user?.token) {
+      try {
+        setLoading(true)
+        const products = await getSellerProducts(user.token)
+        setSellerProducts(products)
+      } catch (error) {
+        console.error('Error loading seller products:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+  }
+
+  const loadSellerStats = async () => {
+    if (user?.token) {
+      try {
+        const statsData = await getSellerStats(user.token)
+        setStats(statsData)
+      } catch (error) {
+        console.error('Error loading seller stats:', error)
+      }
+    }
+  }
+
+  const loadSellerOrders = async () => {
+    if (user?.token) {
+      try {
+        const orders = await getSellerOrders(user.token)
+        setSellerOrders(orders)
+      } catch (error) {
+        console.error('Error loading seller orders:', error)
+      }
+    }
+  }
+
+  useEffect(() => {
+    loadSellerProducts()
+    loadSellerStats()
+    loadSellerOrders()
+  }, [user])
 
   if (!user || !isSeller) {
     return (
@@ -36,20 +89,24 @@ const SellerDashboard = () => {
     )
   }
 
-  const handleAddProduct = () => {
-    const newProduct = {
-      id: Date.now(),
-      name: formData.name,
-      price: parseFloat(formData.price),
-      category: formData.category,
-      description: formData.description,
-      image: formData.image || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&h=500&fit=crop",
-      rating: 4.5,
-      stock: parseInt(formData.stock)
+  const handleAddProduct = async () => {
+    try {
+      const newProduct = await createProduct({
+        name: formData.name,
+        price: parseFloat(formData.price),
+        category: formData.category,
+        description: formData.description,
+        image: formData.image || "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&h=500&fit=crop",
+        stock: parseInt(formData.stock)
+      }, user.token)
+      setSellerProducts([...sellerProducts, newProduct])
+      setShowAddModal(false)
+      setFormData({ name: "", price: "", category: "Electronics", description: "", image: "", stock: "" })
+      loadSellerStats()
+    } catch (error) {
+      console.error('Error adding product:', error)
+      alert('Failed to add product: ' + error.message)
     }
-    setSellerProducts([...sellerProducts, newProduct])
-    setShowAddModal(false)
-    setFormData({ name: "", price: "", category: "Electronics", description: "", image: "", stock: "" })
   }
 
   const handleEditProduct = (product) => {
@@ -65,26 +122,71 @@ const SellerDashboard = () => {
     setShowAddModal(true)
   }
 
-  const handleUpdateProduct = () => {
-    setSellerProducts(sellerProducts.map(p => 
-      p.id === editingProduct.id 
-        ? { ...p, ...formData, price: parseFloat(formData.price), stock: parseInt(formData.stock) }
-        : p
-    ))
-    setShowAddModal(false)
-    setEditingProduct(null)
-    setFormData({ name: "", price: "", category: "Electronics", description: "", image: "", stock: "" })
+  const handleUpdateProduct = async () => {
+    try {
+      const updatedProduct = await updateProduct(editingProduct.id, {
+        name: formData.name,
+        price: parseFloat(formData.price),
+        category: formData.category,
+        description: formData.description,
+        image: formData.image,
+        stock: parseInt(formData.stock)
+      }, user.token)
+      setSellerProducts(sellerProducts.map(p =>
+        p.id === editingProduct.id ? updatedProduct : p
+      ))
+      setShowAddModal(false)
+      setEditingProduct(null)
+      setFormData({ name: "", price: "", category: "Electronics", description: "", image: "", stock: "" })
+      loadSellerStats()
+    } catch (error) {
+      console.error('Error updating product:', error)
+      alert('Failed to update product: ' + error.message)
+    }
   }
 
-  const handleDeleteProduct = (productId) => {
-    setSellerProducts(sellerProducts.filter(p => p.id !== productId))
+  const handleDeleteProduct = async (productId) => {
+    if (!confirm('Are you sure you want to delete this product?')) return
+
+    try {
+      await deleteProduct(productId, user.token)
+      setSellerProducts(sellerProducts.filter(p => p.id !== productId))
+      loadSellerStats()
+    } catch (error) {
+      console.error('Error deleting product:', error)
+      alert('Failed to delete product: ' + error.message)
+    }
   }
 
-  const totalSales = sellerProducts.reduce((acc, p) => acc + (p.price * (100 - p.stock)), 0)
-  const totalProducts = sellerProducts.length
-  const totalRevenue = sellerProducts.reduce((acc, p) => acc + (p.price * (100 - p.stock)), 0)
+  const handleUpdateOrderStatus = async (orderId, status) => {
+    try {
+      await updateOrderStatus(orderId, status, user.token)
+      loadSellerOrders()
+      loadSellerStats()
+    } catch (error) {
+      console.error('Error updating order status:', error)
+      alert('Failed to update order status: ' + error.message)
+    }
+  }
 
-  const categories = ["Electronics", "Clothing", "Home & Garden", "Sports", "Books"]
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'Pending':
+        return <Clock className="h-5 w-5 text-yellow-500" />
+      case 'Processing':
+        return <Package className="h-5 w-5 text-blue-500" />
+      case 'Shipped':
+        return <Truck className="h-5 w-5 text-purple-500" />
+      case 'Delivered':
+        return <CheckCircle className="h-5 w-5 text-green-500" />
+      case 'Cancelled':
+        return <XCircle className="h-5 w-5 text-red-500" />
+      default:
+        return <Clock className="h-5 w-5 text-gray-500" />
+    }
+  }
+
+  const categories = ["Electronics", "Fashion", "Home", "Sports", "Beauty"]
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-6 lg:p-8">
@@ -104,7 +206,7 @@ const SellerDashboard = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Products</p>
-                  <p className="text-2xl font-bold">{totalProducts}</p>
+                  <p className="text-2xl font-bold">{stats.totalProducts}</p>
                 </div>
               </div>
             </CardContent>
@@ -117,7 +219,7 @@ const SellerDashboard = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold">${totalRevenue.toFixed(2)}</p>
+                  <p className="text-2xl font-bold">${stats.totalRevenue.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
@@ -130,7 +232,7 @@ const SellerDashboard = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Sales</p>
-                  <p className="text-2xl font-bold">{totalSales}</p>
+                  <p className="text-2xl font-bold">{stats.totalSales}</p>
                 </div>
               </div>
             </CardContent>
@@ -142,8 +244,8 @@ const SellerDashboard = () => {
                   <TrendingUp className="h-5 w-5 text-purple-500" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Growth</p>
-                  <p className="text-2xl font-bold">+12%</p>
+                  <p className="text-sm text-muted-foreground">Total Orders</p>
+                  <p className="text-2xl font-bold">{stats.totalOrders}</p>
                 </div>
               </div>
             </CardContent>
@@ -157,6 +259,12 @@ const SellerDashboard = () => {
             className={`px-4 md:px-6 py-3 font-medium text-sm md:text-base transition-all duration-300 border-b-2 ${activeTab === "products" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
             Products
+          </button>
+          <button
+            onClick={() => setActiveTab("orders")}
+            className={`px-4 md:px-6 py-3 font-medium text-sm md:text-base transition-all duration-300 border-b-2 ${activeTab === "orders" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          >
+            Orders
           </button>
           <button
             onClick={() => setActiveTab("analytics")}
@@ -216,6 +324,99 @@ const SellerDashboard = () => {
           </div>
         )}
 
+        {activeTab === "orders" && (
+          <div>
+            <h2 className="text-xl md:text-2xl font-bold mb-6">Orders for Your Products</h2>
+            {sellerOrders.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <p className="text-muted-foreground">No orders yet</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {sellerOrders.map((order) => (
+                  <Card key={order._id}>
+                    <CardContent className="p-4 md:p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            {getStatusIcon(order.status)}
+                            <span className="font-semibold">{order.status}</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Order ID: {order._id?.toString().slice(-8)}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(order.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <p className="text-lg font-bold">${order.totalPrice.toFixed(2)}</p>
+                      </div>
+
+                      <div className="space-y-3 mb-4">
+                        {order.products.map((item, index) => (
+                          <div key={index} className="flex items-center gap-3">
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-12 h-12 object-cover rounded"
+                            />
+                            <div className="flex-1">
+                              <p className="font-medium">{item.name}</p>
+                              <p className="text-sm text-muted-foreground">Qty: {item.quantity} × ${item.price.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex gap-2">
+                        {order.status === 'Pending' && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => handleUpdateOrderStatus(order._id, 'Processing')}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Verify & Process
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleUpdateOrderStatus(order._id, 'Cancelled')}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Cancel
+                            </Button>
+                          </>
+                        )}
+                        {order.status === 'Processing' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateOrderStatus(order._id, 'Shipped')}
+                          >
+                            <Truck className="h-4 w-4 mr-1" />
+                            Mark as Shipped
+                          </Button>
+                        )}
+                        {order.status === 'Shipped' && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleUpdateOrderStatus(order._id, 'Delivered')}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Mark as Delivered
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === "analytics" && (
           <div className="space-y-6">
             <h2 className="text-xl md:text-2xl font-bold">Sales Analytics</h2>
@@ -227,15 +428,15 @@ const SellerDashboard = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Today's Sales</span>
-                    <span className="font-semibold">$1,234.56</span>
+                    <span className="font-semibold">${stats.todayRevenue.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">This Week</span>
-                    <span className="font-semibold">$8,765.43</span>
+                    <span className="font-semibold">${stats.weekRevenue.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">This Month</span>
-                    <span className="font-semibold">$34,567.89</span>
+                    <span className="font-semibold">${stats.monthRevenue.toFixed(2)}</span>
                   </div>
                 </div>
               </CardContent>

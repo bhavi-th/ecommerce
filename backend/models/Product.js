@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 
 const productSchema = new mongoose.Schema({
+  id: {
+    type: Number,
+    required: true,
+    unique: true
+  },
   name: {
     type: String,
     required: true,
@@ -35,6 +40,11 @@ const productSchema = new mongoose.Schema({
     required: true,
     min: 0,
     default: 0
+  },
+  seller: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   }
 }, {
   timestamps: true

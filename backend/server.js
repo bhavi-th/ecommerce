@@ -51,16 +51,167 @@ const protect = async (req, res, next) => {
 };
 
 // Products routes
-app.get('/api/products', (req, res) => {
+app.get('/api/products', async (req, res) => {
+  const products = await Product.find({});
   res.json(products);
 });
 
-app.get('/api/products/:id', (req, res) => {
-  const product = products.find(p => p.id === parseInt(req.params.id));
+app.get('/api/products/:id', async (req, res) => {
+  const product = await Product.findOne({ id: parseInt(req.params.id) });
   if (product) {
     res.json(product);
   } else {
     res.status(404).json({ message: 'Product not found' });
+  }
+});
+
+// Seller-specific product routes
+app.post('/api/products', protect, async (req, res) => {
+  const { name, price, image, category, description, stock } = req.body;
+  const maxIdProduct = await Product.findOne().sort({ id: -1 });
+  const newId = maxIdProduct ? maxIdProduct.id + 1 : 1;
+
+  const product = await Product.create({
+    id: newId,
+    name,
+    price,
+    image,
+    category,
+    description,
+    stock,
+    seller: req.user._id
+  });
+
+  res.status(201).json(product);
+});
+
+app.put('/api/products/:id', protect, async (req, res) => {
+  const product = await Product.findOne({ id: parseInt(req.params.id) });
+
+  if (!product) {
+    return res.status(404).json({ message: 'Product not found' });
+  }
+
+  // Check if user is the seller of this product
+  if (product.seller && product.seller.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized to update this product' });
+  }
+
+  const { name, price, image, category, description, stock } = req.body;
+
+  if (name) product.name = name;
+  if (price) product.price = price;
+  if (image) product.image = image;
+  if (category) product.category = category;
+  if (description) product.description = description;
+  if (stock) product.stock = stock;
+
+  const updatedProduct = await product.save();
+  res.json(updatedProduct);
+});
+
+app.delete('/api/products/:id', protect, async (req, res) => {
+  const product = await Product.findOne({ id: parseInt(req.params.id) });
+
+  if (!product) {
+    return res.status(404).json({ message: 'Product not found' });
+  }
+
+  // Check if user is the seller of this product
+  if (product.seller && product.seller.toString() !== req.user._id.toString()) {
+    return res.status(403).json({ message: 'Not authorized to delete this product' });
+  }
+
+  await Product.deleteOne({ id: parseInt(req.params.id) });
+  res.json({ message: 'Product removed' });
+});
+
+app.get('/api/products/seller/myproducts', protect, async (req, res) => {
+  const products = await Product.find({ seller: req.user._id });
+  res.json(products);
+});
+
+app.get('/api/products/seller/stats', protect, async (req, res) => {
+  try {
+    const products = await Product.find({ seller: req.user._id });
+    const orders = await Order.find({});
+
+    // Filter orders that contain seller's products
+    const sellerOrders = orders.filter(order =>
+      order.products.some(p => {
+        const product = products.find(prod => prod.id === p.product);
+        return product !== undefined;
+      })
+    );
+
+    // Calculate total revenue from seller's products
+    let totalRevenue = 0;
+    let totalSales = 0;
+
+    sellerOrders.forEach(order => {
+      order.products.forEach(p => {
+        const product = products.find(prod => prod.id === p.product);
+        if (product) {
+          totalRevenue += p.price * p.quantity;
+          totalSales += p.quantity;
+        }
+      });
+    });
+
+    // Calculate today's sales
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayOrders = sellerOrders.filter(order => new Date(order.createdAt) >= today);
+    let todayRevenue = 0;
+    todayOrders.forEach(order => {
+      order.products.forEach(p => {
+        const product = products.find(prod => prod.id === p.product);
+        if (product) {
+          todayRevenue += p.price * p.quantity;
+        }
+      });
+    });
+
+    // Calculate this week's sales
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekOrders = sellerOrders.filter(order => new Date(order.createdAt) >= weekAgo);
+    let weekRevenue = 0;
+    weekOrders.forEach(order => {
+      order.products.forEach(p => {
+        const product = products.find(prod => prod.id === p.product);
+        if (product) {
+          weekRevenue += p.price * p.quantity;
+        }
+      });
+    });
+
+    // Calculate this month's sales
+    const monthAgo = new Date();
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+    const monthOrders = sellerOrders.filter(order => new Date(order.createdAt) >= monthAgo);
+    let monthRevenue = 0;
+    monthOrders.forEach(order => {
+      order.products.forEach(p => {
+        const product = products.find(prod => prod.id === p.product);
+        if (product) {
+          monthRevenue += p.price * p.quantity;
+        }
+      });
+    });
+
+    res.json({
+      totalProducts: products.length,
+      totalRevenue,
+      totalSales,
+      todayRevenue,
+      weekRevenue,
+      monthRevenue,
+      totalOrders: sellerOrders.length
+    });
+  } catch (error) {
+    console.error('Error fetching seller stats:', error);
+    res.status(500).json({ message: 'Error fetching seller stats' });
   }
 });
 
@@ -180,51 +331,128 @@ app.delete('/api/cart/:productId', protect, async (req, res) => {
 
 // Order routes
 app.post('/api/orders', protect, async (req, res) => {
-  const { shippingAddress, paymentMethod } = req.body;
-  const cart = await Cart.findOne({ user: req.user._id });
-  if (!cart || cart.products.length === 0) {
-    return res.status(400).json({ message: 'Cart is empty' });
+  try {
+    const { shippingAddress, paymentMethod } = req.body;
+    const cart = await Cart.findOne({ user: req.user._id });
+    if (!cart || cart.products.length === 0) {
+      return res.status(400).json({ message: 'Cart is empty' });
+    }
+
+    const products = await Product.find({});
+    const orderProducts = cart.products.map(item => {
+      const product = products.find(p => p.id === item.product);
+      if (!product) {
+        console.error(`Product with ID ${item.product} not found in database`);
+        return null;
+      }
+      return {
+        product: item.product,
+        name: product.name,
+        price: product.price,
+        quantity: item.quantity,
+        image: product.image
+      };
+    }).filter(item => item !== null);
+
+    if (orderProducts.length === 0) {
+      console.error('No valid products found in cart. Cart products:', cart.products);
+      console.error('Available products:', products.map(p => ({ id: p.id, name: p.name })));
+      return res.status(400).json({
+        message: 'No valid products in cart. Please clear your cart and try again.',
+        cartProducts: cart.products,
+        availableProducts: products.map(p => ({ id: p.id, name: p.name }))
+      });
+    }
+
+    const itemsPrice = orderProducts.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    const taxPrice = itemsPrice * 0.1;
+    const shippingPrice = itemsPrice > 100 ? 0 : 10;
+    const totalPrice = itemsPrice + taxPrice + shippingPrice;
+
+    const order = await Order.create({
+      user: req.user._id,
+      products: orderProducts,
+      shippingAddress,
+      paymentMethod,
+      itemsPrice,
+      taxPrice,
+      shippingPrice,
+      totalPrice,
+      isPaid: false,
+      isDelivered: false,
+      status: 'Pending'
+    });
+
+    cart.products = [];
+    await cart.save();
+    res.status(201).json(order);
+  } catch (error) {
+    console.error('Error creating order:', error);
+    res.status(500).json({ message: 'Error creating order', error: error.message });
   }
-
-  const products = await Product.find({});
-  const orderProducts = cart.products.map(item => {
-    const product = products.find(p => p.id === item.product);
-    return {
-      product: item.product,
-      name: product.name,
-      price: product.price,
-      quantity: item.quantity,
-      image: product.image
-    };
-  });
-
-  const itemsPrice = orderProducts.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const taxPrice = itemsPrice * 0.1;
-  const shippingPrice = itemsPrice > 100 ? 0 : 10;
-  const totalPrice = itemsPrice + taxPrice + shippingPrice;
-
-  const order = await Order.create({
-    user: req.user._id,
-    products: orderProducts,
-    shippingAddress,
-    paymentMethod,
-    itemsPrice,
-    taxPrice,
-    shippingPrice,
-    totalPrice,
-    isPaid: false,
-    isDelivered: false,
-    status: 'Pending'
-  });
-
-  cart.products = [];
-  await cart.save();
-  res.status(201).json(order);
 });
 
 app.get('/api/orders/myorders', protect, async (req, res) => {
   const orders = await Order.find({ user: req.user._id }).sort({ createdAt: -1 });
   res.json(orders);
+});
+
+// Seller order routes
+app.get('/api/orders/seller/myorders', protect, async (req, res) => {
+  try {
+    const products = await Product.find({ seller: req.user._id });
+    const orders = await Order.find({}).sort({ createdAt: -1 });
+
+    // Filter orders that contain seller's products
+    const sellerOrders = orders.filter(order =>
+      order.products.some(p => {
+        const product = products.find(prod => prod.id === p.product);
+        return product !== undefined;
+      })
+    );
+
+    res.json(sellerOrders);
+  } catch (error) {
+    console.error('Error fetching seller orders:', error);
+    res.status(500).json({ message: 'Error fetching seller orders' });
+  }
+});
+
+app.put('/api/orders/:id/status', protect, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    // Check if user is a seller and if the order contains their products
+    if (req.user.isSeller) {
+      const products = await Product.find({ seller: req.user._id });
+      const hasSellerProduct = order.products.some(p => {
+        const product = products.find(prod => prod.id === p.product);
+        return product !== undefined;
+      });
+
+      if (!hasSellerProduct) {
+        return res.status(403).json({ message: 'Not authorized to update this order' });
+      }
+    }
+
+    order.status = status;
+
+    // Update isDelivered based on status
+    if (status === 'Delivered') {
+      order.isDelivered = true;
+    }
+
+    const updatedOrder = await order.save();
+    res.json(updatedOrder);
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    res.status(500).json({ message: 'Error updating order status' });
+  }
 });
 
 // Health check

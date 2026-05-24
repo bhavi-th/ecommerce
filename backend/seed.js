@@ -14,8 +14,30 @@ const seedProducts = async () => {
     await Product.deleteMany();
     console.log('Existing products cleared');
 
-    // Insert products
-    await Product.insertMany(products);
+    // Clear existing carts (to avoid invalid product IDs)
+    const Cart = (await import('./models/Cart.js')).default;
+    await Cart.deleteMany();
+    console.log('Existing carts cleared');
+
+    // Clear existing orders
+    const Order = (await import('./models/Order.js')).default;
+    await Order.deleteMany();
+    console.log('Existing orders cleared');
+
+    // Insert products with numeric IDs
+    const productsWithIds = products.map(product => ({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      category: product.category,
+      description: product.description,
+      rating: product.rating,
+      stock: product.stock,
+      seller: null // Default seller is null for seeded products
+    }));
+
+    await Product.insertMany(productsWithIds);
     console.log('Products seeded successfully');
 
     process.exit();
