@@ -1,224 +1,27 @@
-import { Plus, Minus, Trash2, CreditCard, MapPin, CheckCircle, ShoppingBag } from "lucide-react"
+import { Plus, Minus, Trash2, ShoppingBag, ArrowRight } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/Card"
 import Button from "../components/Button"
 import { useCart } from "../context/CartContext"
+import { useUser } from "../context/UserContext"
 import { useNavigate } from "react-router-dom"
-import { useState, useEffect } from "react"
 import { useIntersectionObserver } from "../hooks/useIntersectionObserver"
 
 const Cart = () => {
-  const { cart, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart()
+  const { cart, removeFromCart, updateQuantity, cartTotal } = useCart()
+  const { user } = useUser()
   const navigate = useNavigate()
-  const [showCheckout, setShowCheckout] = useState(false)
-  const [orderPlaced, setOrderPlaced] = useState(false)
   const [titleRef, titleVisible] = useIntersectionObserver({ threshold: 0.1 })
   const [cartItemsRef, cartItemsVisible] = useIntersectionObserver({ threshold: 0.1 })
   const [summaryRef, summaryVisible] = useIntersectionObserver({ threshold: 0.1 })
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    address: "",
-    city: "",
-    zipCode: "",
-    cardNumber: "",
-    expiryDate: "",
-    cvv: "",
-  })
 
-  const handleInputChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
-
-  const handleCheckout = (e) => {
-    e.preventDefault()
-    setOrderPlaced(true)
-    clearCart()
-    setTimeout(() => {
-      setOrderPlaced(false)
-      setShowCheckout(false)
-      navigate("/")
-    }, 3000)
-  }
-
-  if (orderPlaced) {
+  if (!user) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh] px-4">
-        <Card className="w-full max-w-md p-6 md:p-8 text-center animate-scale-in">
-          <CheckCircle className="h-12 w-12 md:h-16 md:w-16 text-green-500 mx-auto mb-3 md:mb-4 animate-bounce-slow" />
-          <h3 className="text-xl md:text-2xl font-bold mb-2">Order Placed!</h3>
-          <p className="text-muted-foreground text-sm md:text-base mb-3 md:mb-4">
-            Thank you for your purchase. Your order has been successfully placed.
-          </p>
-          <p className="text-xs md:text-sm text-muted-foreground">
-            Redirecting you back to the store...
-          </p>
-        </Card>
-      </div>
-    )
-  }
-
-  if (showCheckout) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 animate-page-fade-in">
-        <button
-          onClick={() => setShowCheckout(false)}
-          className="text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors hover:translate-x-[-4px] inline-block"
-        >
-          ← Back to Cart
-        </button>
-        <Card className="hover:shadow-xl transition-shadow duration-300">
-          <CardHeader>
-            <CardTitle className="text-xl md:text-2xl">Checkout</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCheckout} className="space-y-4 md:space-y-6">
-              <div className="space-y-3 md:space-y-4">
-                <h3 className="font-semibold flex items-center gap-2 text-sm md:text-base">
-                  <MapPin className="h-4 w-4" />
-                  Shipping Information
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs md:text-sm font-medium mb-1 block">Full Name</label>
-                    <input
-                      type="text"
-                      name="name"
-                      required
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      className="w-full rounded-md border-2 border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus:border-primary transition-all duration-200"
-                      placeholder="John Doe"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs md:text-sm font-medium mb-1 block">Email</label>
-                    <input
-                      type="email"
-                      name="email"
-                      required
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="w-full rounded-md border-2 border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus:border-primary transition-all duration-200"
-                      placeholder="john@example.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs md:text-sm font-medium mb-1 block">Address</label>
-                    <input
-                      type="text"
-                      name="address"
-                      required
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      className="w-full rounded-md border-2 border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus:border-primary transition-all duration-200"
-                      placeholder="123 Main St"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs md:text-sm font-medium mb-1 block">City</label>
-                      <input
-                        type="text"
-                        name="city"
-                        required
-                        value={formData.city}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border-2 border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus:border-primary transition-all duration-200"
-                        placeholder="New York"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs md:text-sm font-medium mb-1 block">ZIP Code</label>
-                      <input
-                        type="text"
-                        name="zipCode"
-                        required
-                        value={formData.zipCode}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border-2 border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus:border-primary transition-all duration-200"
-                        placeholder="10001"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 md:space-y-4">
-                <h3 className="font-semibold flex items-center gap-2 text-sm md:text-base">
-                  <CreditCard className="h-4 w-4" />
-                  Payment Information
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs md:text-sm font-medium mb-1 block">Card Number</label>
-                    <input
-                      type="text"
-                      name="cardNumber"
-                      required
-                      value={formData.cardNumber}
-                      onChange={handleInputChange}
-                      className="w-full rounded-md border-2 border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus:border-primary transition-all duration-200"
-                      placeholder="1234 5678 9012 3456"
-                      maxLength={19}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs md:text-sm font-medium mb-1 block">Expiry Date</label>
-                      <input
-                        type="text"
-                        name="expiryDate"
-                        required
-                        value={formData.expiryDate}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border-2 border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus:border-primary transition-all duration-200"
-                        placeholder="MM/YY"
-                        maxLength={5}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs md:text-sm font-medium mb-1 block">CVV</label>
-                      <input
-                        type="text"
-                        name="cvv"
-                        required
-                        value={formData.cvv}
-                        onChange={handleInputChange}
-                        className="w-full rounded-md border-2 border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus:border-primary transition-all duration-200"
-                        placeholder="123"
-                        maxLength={3}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t pt-4 space-y-2 md:space-y-3">
-                <div className="flex justify-between text-sm md:text-base">
-                  <span>Subtotal</span>
-                  <span>${cartTotal.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-sm md:text-base">
-                  <span>Shipping</span>
-                  <span>Free</span>
-                </div>
-                <div className="flex justify-between text-sm md:text-base">
-                  <span>Tax</span>
-                  <span>${(cartTotal * 0.08).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-base md:text-lg font-bold border-t pt-3">
-                  <span>Total</span>
-                  <span>${(cartTotal * 1.08).toFixed(2)}</span>
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full group relative overflow-hidden text-sm md:text-base" size="lg">
-                <span className="relative z-10">
-                  Place Order - ${(cartTotal * 1.08).toFixed(2)}
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-              </Button>
-            </form>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <ShoppingBag className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground mb-4">Please sign in to view your cart</p>
+            <Button onClick={() => navigate("/login")}>Sign In</Button>
           </CardContent>
         </Card>
       </div>
@@ -313,22 +116,23 @@ const Cart = () => {
                 </div>
                 <div className="flex justify-between text-xs md:text-sm lg:text-base">
                   <span>Shipping</span>
-                  <span>Free</span>
+                  <span>{cartTotal > 100 ? 'Free' : '$10.00'}</span>
                 </div>
                 <div className="flex justify-between text-xs md:text-sm lg:text-base">
-                  <span>Tax</span>
-                  <span>${(cartTotal * 0.08).toFixed(2)}</span>
+                  <span>Tax (10%)</span>
+                  <span>${(cartTotal * 0.1).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm md:text-base lg:text-lg font-bold border-t pt-3">
                   <span>Total</span>
-                  <span>${(cartTotal * 1.08).toFixed(2)}</span>
+                  <span>${(cartTotal * 1.1 + (cartTotal > 100 ? 0 : 10)).toFixed(2)}</span>
                 </div>
                 <Button
                   className="w-full group relative overflow-hidden text-xs md:text-sm lg:text-base"
                   size="lg"
-                  onClick={() => setShowCheckout(true)}
+                  onClick={() => navigate("/checkout")}
                 >
                   <span className="relative z-10">Proceed to Checkout</span>
+                  <ArrowRight className="h-4 w-4 ml-2" />
                   <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
                 </Button>
               </CardContent>

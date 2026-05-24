@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react"
+import { loginUser as loginUserAPI, registerUser as registerUserAPI, getUserOrders as getUserOrdersAPI } from "../services/api"
 
 const UserContext = createContext()
 
@@ -13,42 +14,12 @@ export const useUser = () => {
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const savedUser = localStorage.getItem("user")
-    return savedUser ? JSON.parse(savedUser) : {
-      name: "John Doe",
-      email: "john@example.com",
-      avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-      phone: "+1 234 567 8900",
-      address: "123 Main St",
-      city: "New York",
-      zipCode: "10001",
-      country: "United States",
-      memberSince: "January 2024",
-    }
+    return savedUser ? JSON.parse(savedUser) : null
   })
 
   const [orders, setOrders] = useState(() => {
     const savedOrders = localStorage.getItem("orders")
-    return savedOrders ? JSON.parse(savedOrders) : [
-      {
-        id: "ORD-001",
-        date: "2024-01-15",
-        status: "Delivered",
-        total: 299.97,
-        items: [
-          { name: "Wireless Headphones", quantity: 1, price: 99.99 },
-          { name: "Smart Watch", quantity: 1, price: 199.99 },
-        ],
-      },
-      {
-        id: "ORD-002",
-        date: "2024-02-20",
-        status: "Shipped",
-        total: 79.99,
-        items: [
-          { name: "Running Shoes", quantity: 1, price: 79.99 },
-        ],
-      },
-    ]
+    return savedOrders ? JSON.parse(savedOrders) : []
   })
 
   const [settings, setSettings] = useState(() => {
@@ -63,7 +34,11 @@ export const UserProvider = ({ children }) => {
   })
 
   useEffect(() => {
-    localStorage.setItem("user", JSON.stringify(user))
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user))
+    } else {
+      localStorage.removeItem("user")
+    }
   }, [user])
 
   useEffect(() => {
@@ -73,6 +48,46 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem("settings", JSON.stringify(settings))
   }, [settings])
+
+  // Load orders from API when user logs in
+  useEffect(() => {
+    if (user?.token) {
+      const loadOrders = async () => {
+        try {
+          const userOrders = await getUserOrdersAPI(user.token)
+          setOrders(userOrders)
+        } catch (error) {
+          console.error('Error loading orders:', error)
+        }
+      }
+      loadOrders()
+    }
+  }, [user])
+
+  const login = async (credentials) => {
+    try {
+      const userData = await loginUserAPI(credentials)
+      setUser(userData)
+      return { success: true }
+    } catch (error) {
+      return { success: false, message: error.message || 'Login failed' }
+    }
+  }
+
+  const register = async (userData) => {
+    try {
+      const newUser = await registerUserAPI(userData)
+      setUser(newUser)
+      return { success: true }
+    } catch (error) {
+      return { success: false, message: error.message || 'Registration failed' }
+    }
+  }
+
+  const logout = () => {
+    setUser(null)
+    setOrders([])
+  }
 
   const updateUser = (newUserData) => {
     setUser({ ...user, ...newUserData })
@@ -86,15 +101,23 @@ export const UserProvider = ({ children }) => {
     setSettings({ ...settings, ...newSettings })
   }
 
+  const isSeller = user?.isSeller || false
+  const isAdmin = user?.isAdmin || false
+
   return (
     <UserContext.Provider
       value={{
         user,
+        login,
+        register,
+        logout,
         updateUser,
         orders,
         addOrder,
         settings,
         updateSettings,
+        isSeller,
+        isAdmin,
       }}
     >
       {children}

@@ -1,13 +1,16 @@
-import { User, ShoppingBag, Settings, Bell, CreditCard, MapPin, Save, LogOut } from "lucide-react"
+import { User, ShoppingBag, Settings, Bell, CreditCard, MapPin, Save, LogOut, CheckCircle, Clock, Truck, XCircle, Package, ArrowRight, Store } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "../components/Card"
 import Button from "../components/Button"
 import Badge from "../components/Badge"
 import { useUser } from "../context/UserContext"
 import { useState } from "react"
 import { useIntersectionObserver } from "../hooks/useIntersectionObserver"
+import { useNavigate } from "react-router-dom"
+import { updateUserProfile } from "../services/api"
 
 const Profile = () => {
-  const { user, updateUser, orders, settings, updateSettings } = useUser()
+  const navigate = useNavigate()
+  const { user, updateUser, orders, settings, updateSettings, logout, isSeller } = useUser()
   const [activeTab, setActiveTab] = useState("profile")
   const [editMode, setEditMode] = useState(false)
   const [tempUser, setTempUser] = useState(user)
@@ -25,18 +28,47 @@ const Profile = () => {
     setEditMode(false)
   }
 
+  const handleLogout = () => {
+    logout()
+    navigate("/")
+  }
+
+  const handleToggleSeller = async () => {
+    try {
+      const updatedUser = await updateUserProfile({ isSeller: !isSeller }, user.token)
+      updateUser(updatedUser)
+    } catch (error) {
+      console.error('Error updating seller status:', error)
+    }
+  }
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case "Delivered":
+        return <CheckCircle className="h-5 w-5 text-green-500" />
+      case "Pending":
+        return <Clock className="h-5 w-5 text-yellow-500" />
+      case "Shipped":
+        return <Truck className="h-5 w-5 text-blue-500" />
+      case "Cancelled":
+        return <XCircle className="h-5 w-5 text-red-500" />
+      default:
+        return <Clock className="h-5 w-5 text-muted-foreground" />
+    }
+  }
+
   const getStatusColor = (status) => {
     switch (status) {
       case "Delivered":
-        return "bg-green-500"
+        return "bg-green-500/10 text-green-600 border-green-500/20"
+      case "Pending":
+        return "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
       case "Shipped":
-        return "bg-blue-500"
-      case "Processing":
-        return "bg-yellow-500"
+        return "bg-blue-500/10 text-blue-600 border-blue-500/20"
       case "Cancelled":
-        return "bg-red-500"
+        return "bg-red-500/10 text-red-600 border-red-500/20"
       default:
-        return "bg-gray-500"
+        return "bg-muted text-muted-foreground"
     }
   }
 
@@ -46,10 +78,23 @@ const Profile = () => {
     { id: "settings", label: "Settings", icon: Settings },
   ]
 
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <p className="text-muted-foreground mb-4">Please sign in to view your profile</p>
+            <Button onClick={() => navigate("/login")}>Sign In</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
-    <div className="max-w-4xl mx-auto px-4">
+    <div className="max-w-6xl mx-auto px-4">
       <h1 className={`text-2xl md:text-3xl font-bold mb-4 md:mb-6 transition-all duration-700 ${headerVisible ? 'animate-slide-up opacity-100' : 'opacity-0 translate-y-8'}`} ref={headerRef}>
-        My Profile
+        {isSeller ? "Seller Dashboard" : "Buyer Dashboard"}
       </h1>
 
       {/* Tabs */}
@@ -214,6 +259,41 @@ const Profile = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Seller Account */}
+            <Card className="hover:shadow-xl transition-shadow duration-300">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg md:text-xl">
+                  <Store className="h-4 w-4" />
+                  Seller Account
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Become a Seller</p>
+                    <p className="text-sm text-muted-foreground">Enable seller mode to manage products</p>
+                  </div>
+                  <Button
+                    variant={isSeller ? "default" : "outline"}
+                    onClick={handleToggleSeller}
+                  >
+                    {isSeller ? "Seller Enabled" : "Enable Seller"}
+                  </Button>
+                </div>
+                {isSeller && (
+                  <div className="pt-4 border-t border-border">
+                    <Button
+                      className="w-full"
+                      onClick={() => navigate("/seller-dashboard")}
+                    >
+                      <Store className="h-4 w-4 mr-2" />
+                      Go to Seller Dashboard
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         )}
 
@@ -223,39 +303,78 @@ const Profile = () => {
             {orders.length === 0 ? (
               <Card className="animate-scale-in">
                 <CardContent className="flex flex-col items-center justify-center py-10 md:py-12 text-muted-foreground px-4">
-                  <ShoppingBag className="h-10 w-10 md:h-12 md:w-12 mb-3 md:mb-4 opacity-50 animate-float" />
+                  <Package className="h-10 w-10 md:h-12 md:w-12 mb-3 md:mb-4 opacity-50 animate-float" />
                   <p className="text-sm md:text-base">No orders yet</p>
+                  <p className="text-xs md:text-sm mb-4">Start shopping to see your orders here</p>
+                  <Button onClick={() => navigate("/products")}>
+                    Browse Products
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-3 md:space-y-4">
                 {orders.map((order, index) => (
                   <Card
-                    key={order.id}
+                    key={order._id}
                     className="hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
                     style={{ animationDelay: `${index * 0.05}s` }}
                   >
-                    <CardContent className="p-4 md:p-6">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="min-w-0">
-                          <h5 className="font-semibold text-sm md:text-base truncate">{order.id}</h5>
-                          <p className="text-xs md:text-sm text-muted-foreground">{order.date}</p>
+                    <CardHeader className="border-b border-border">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                          <CardTitle className="text-lg">Order #{order._id.slice(-8)}</CardTitle>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(order.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
+                          </p>
                         </div>
-                        <Badge className={getStatusColor(order.status)}>
+                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border ${getStatusColor(order.status)}`}>
+                          {getStatusIcon(order.status)}
                           {order.status}
-                        </Badge>
+                        </div>
                       </div>
-                      <div className="space-y-2 mb-3">
-                        {order.items.map((item, index) => (
-                          <div key={index} className="flex justify-between text-xs md:text-sm">
-                            <span className="truncate mr-2">{item.quantity}x {item.name}</span>
-                            <span className="flex-shrink-0">${(item.price * item.quantity).toFixed(2)}</span>
+                    </CardHeader>
+                    <CardContent className="p-4 md:p-6">
+                      <div className="space-y-4">
+                        <div className="space-y-3">
+                          {order.products.map((item, index) => (
+                            <div key={index} className="flex items-center gap-4">
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                className="w-16 h-16 object-cover rounded-lg"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{item.name}</p>
+                                <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                              </div>
+                              <p className="font-semibold">${(item.price * item.quantity).toFixed(2)}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="border-t border-border pt-4 space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Items Total</span>
+                            <span>${order.itemsPrice.toFixed(2)}</span>
                           </div>
-                        ))}
-                      </div>
-                      <div className="flex justify-between font-semibold pt-3 border-t text-sm md:text-base">
-                        <span>Total</span>
-                        <span>${order.total.toFixed(2)}</span>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Tax</span>
+                            <span>${order.taxPrice.toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Shipping</span>
+                            <span>{order.shippingPrice === 0 ? 'Free' : `$${order.shippingPrice.toFixed(2)}`}</span>
+                          </div>
+                          <div className="flex justify-between text-lg font-bold pt-2 border-t border-border">
+                            <span>Total</span>
+                            <span>${order.totalPrice.toFixed(2)}</span>
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -349,7 +468,7 @@ const Profile = () => {
             {/* Logout */}
             <Card className="hover:shadow-xl transition-shadow duration-300">
               <CardContent className="p-4 md:p-6">
-                <Button variant="destructive" className="w-full hover:scale-105 transition-transform group relative overflow-hidden">
+                <Button variant="destructive" className="w-full hover:scale-105 transition-transform group relative overflow-hidden" onClick={handleLogout}>
                   <span className="relative z-10">
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out

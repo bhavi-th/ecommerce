@@ -1,14 +1,22 @@
-import { ShoppingCart, Search, User, X, ShoppingBag, Heart, Package, Menu } from "lucide-react"
+import { ShoppingCart, Search, User, X, ShoppingBag, Heart, Package, Menu, LogOut } from "lucide-react"
 import { useCart } from "../context/CartContext"
-import { Link, useLocation } from "react-router-dom"
+import { useUser } from "../context/UserContext"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import Button from "./Button"
 import { useState } from "react"
 
 const Header = ({ onMenuClick, searchQuery, onSearchChange }) => {
   const { cartCount } = useCart()
+  const { user, logout } = useUser()
+  const navigate = useNavigate()
   const location = useLocation()
   const isLandingPage = location.pathname === "/"
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
+
+  const handleLogout = () => {
+    logout()
+    navigate("/")
+  }
 
   return (
     <header className={`sticky top-0 z-50 w-full transition-all duration-500 ease-out ${isLandingPage ? "bg-background/80 backdrop-blur-md" : "border-b border-border/50 bg-background/95 backdrop-blur-xl shadow-md"} bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 will-change-transform`}>
@@ -80,24 +88,62 @@ const Header = ({ onMenuClick, searchQuery, onSearchChange }) => {
         <div className="flex items-center gap-1 md:gap-2">
           {!isLandingPage && (
             <>
-              <Link to="/login">
-                <Button
-                  variant="ghost"
-                  size="lg"
-                  className="hidden sm:flex items-center gap-2 hover:bg-primary/10 transition-all duration-200 rounded-xl"
-                >
-                  <User className="h-5 w-5" />
-                  <span className="hidden md:inline">Sign In</span>
-                </Button>
-              </Link>
-              <Link to="/register">
-                <Button
-                  size="lg"
-                  className="hidden md:flex items-center gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-xl shadow-primary/30 transition-all duration-300 hover:scale-105 rounded-xl"
-                >
-                  Sign Up
-                </Button>
-              </Link>
+              {user ? (
+                <>
+                  {user.isSeller && (
+                    <Link to="/seller-dashboard">
+                      <Button
+                        variant="ghost"
+                        size="lg"
+                        className="hidden sm:flex items-center gap-2 hover:bg-primary/10 transition-all duration-200 rounded-xl"
+                      >
+                        <ShoppingBag className="h-5 w-5" />
+                        <span className="hidden md:inline">Seller Dashboard</span>
+                      </Button>
+                    </Link>
+                  )}
+                  <Link to="/profile">
+                    <Button
+                      variant="ghost"
+                      size="lg"
+                      className="hidden sm:flex items-center gap-2 hover:bg-primary/10 transition-all duration-200 rounded-xl"
+                    >
+                      <User className="h-5 w-5" />
+                      <span className="hidden md:inline">{user.name}</span>
+                    </Button>
+                  </Link>
+                  <Button
+                    variant="ghost"
+                    size="lg"
+                    className="hidden sm:flex items-center gap-2 hover:bg-destructive/10 hover:text-destructive transition-all duration-200 rounded-xl"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span className="hidden md:inline">Sign Out</span>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login">
+                    <Button
+                      variant="ghost"
+                      size="lg"
+                      className="hidden sm:flex items-center gap-2 hover:bg-primary/10 transition-all duration-200 rounded-xl"
+                    >
+                      <User className="h-5 w-5" />
+                      <span className="hidden md:inline">Sign In</span>
+                    </Button>
+                  </Link>
+                  <Link to="/register">
+                    <Button
+                      size="lg"
+                      className="hidden md:flex items-center gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-xl shadow-primary/30 transition-all duration-300 hover:scale-105 rounded-xl"
+                    >
+                      Sign Up
+                    </Button>
+                  </Link>
+                </>
+              )}
             </>
           )}
 

@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/Card"
 import Button from "../components/Button"
 import { Link, useNavigate } from "react-router-dom"
 import { useIntersectionObserver } from "../hooks/useIntersectionObserver"
+import { useUser } from "../context/UserContext"
 
 const Register = () => {
   const navigate = useNavigate()
+  const { register } = useUser()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [formData, setFormData] = useState({
@@ -15,18 +17,35 @@ const Register = () => {
     password: "",
     confirmPassword: "",
   })
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
   const [headerRef, headerVisible] = useIntersectionObserver({ threshold: 0.1 })
   const [cardRef, cardVisible] = useIntersectionObserver({ threshold: 0.1 })
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setError("")
+
     if (formData.password !== formData.confirmPassword) {
-      alert("Passwords do not match")
+      setError("Passwords do not match")
       return
     }
-    // Handle registration logic here
-    console.log("Register:", formData)
-    navigate("/login")
+
+    setLoading(true)
+
+    const result = await register({
+      name: formData.name,
+      email: formData.email,
+      password: formData.password
+    })
+
+    if (result.success) {
+      navigate("/products")
+    } else {
+      setError(result.message)
+    }
+
+    setLoading(false)
   }
 
   return (
@@ -65,6 +84,11 @@ const Register = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
+              {error && (
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-xl text-sm">
+                  {error}
+                </div>
+              )}
               <div className={`transition-all duration-500 ${cardVisible ? 'animate-slide-up opacity-100' : 'opacity-0 translate-y-4'}`} style={{ animationDelay: '0.1s' }}>
                 <label className="text-xs sm:text-sm font-medium text-foreground mb-1.5 sm:mb-2 block">Full Name</label>
                 <div className="relative group">
@@ -195,9 +219,10 @@ const Register = () => {
                 type="submit"
                 className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-xl shadow-primary/30 transition-all duration-300 hover:scale-105 rounded-xl h-11 sm:h-12"
                 size="lg"
+                disabled={loading}
               >
-                Create Account
-                <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
+                {loading ? 'Creating account...' : 'Create Account'}
+                {!loading && <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />}
               </Button>
 
               <div className={`text-center text-xs sm:text-sm text-muted-foreground transition-all duration-500 ${cardVisible ? 'animate-slide-up opacity-100' : 'opacity-0 translate-y-4'}`} style={{ animationDelay: '0.7s' }}>

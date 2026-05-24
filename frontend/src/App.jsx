@@ -6,19 +6,40 @@ import Header from "./components/Header"
 import Sidebar from "./components/Sidebar"
 import ProductCard from "./components/ProductCard"
 import ScrollProgress from "./components/ScrollProgress"
-import { products } from "./data/products"
+import { getProducts } from "./services/api"
 import Landing from "./pages/Landing"
 import Home from "./pages/Home"
 import Cart from "./pages/Cart"
 import Profile from "./pages/Profile"
 import Login from "./pages/Login"
 import Register from "./pages/Register"
+import Checkout from "./pages/Checkout"
+import Orders from "./pages/Orders"
+import SellerDashboard from "./pages/SellerDashboard"
+import ProductDetails from "./pages/ProductDetails"
 
 function AppContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [products, setProducts] = useState([])
+  const [loading, setLoading] = useState(true)
   const location = useLocation()
+
+  // Fetch products from API
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await getProducts()
+        setProducts(data)
+        setLoading(false)
+      } catch (error) {
+        console.error('Error fetching products:', error)
+        setLoading(false)
+      }
+    }
+    fetchProducts()
+  }, [])
 
   // Force reset state when navigating to products page
   useEffect(() => {
@@ -39,7 +60,7 @@ function AppContent() {
         product.category.toLowerCase().includes(searchQuery.toLowerCase())
       return matchesCategory && matchesSearch
     })
-  }, [selectedCategory, searchQuery])
+  }, [selectedCategory, searchQuery, products])
 
   const isShopPage = location.pathname === "/products"
 
@@ -73,7 +94,11 @@ function AppContent() {
                 />
               }
             />
+            <Route path="/products/:id" element={<ProductDetails />} />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/seller-dashboard" element={<SellerDashboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
